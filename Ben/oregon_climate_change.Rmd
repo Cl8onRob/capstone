@@ -1,0 +1,72 @@
+---
+title: "oregon_climate_change"
+author: "Ben Rubin"
+date: "2023-06-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tigris)
+library(sf)
+library(biscale)
+library(cowplot)
+```
+
+## R Markdown
+
+```{r}
+federal_data <- read_csv("./1.0-communities.csv")
+
+oregon_data <-
+  federal_data |>
+  filter(`State/Territory` == "Oregon")
+
+tracts_sf <- tracts(state = "OR", year = 2010)
+
+sf_w_data <- 
+  left_join(oregon_data, tracts_sf, by = c("Census tract 2010 ID" = "GEOID10")) |>
+  st_as_sf()
+```
+
+
+```{r}
+counties_ver <-
+  sf_w_data |>
+  group_by(`County Name`) |>
+  summarize(pm2.5  = mean(`PM2.5 in the air (percentile)`, na.rm = T),
+            asthma = mean(`Current asthma among adults aged greater than or equal to 18 years (percentile)`, na.rm = T))
+
+counties_bivar <-
+  counties_ver |>
+  bi_class(x = asthma, y = pm2.5, style = "quantile", dim = 3)
+
+
+map <-
+  ggplot(counties_bivar, aes(fill = bi_class)) +
+  geom_sf() +
+  bi_scale_fill(pal = "PurpleOr") +
+  bi_theme() +
+  theme(legend.position = "none",
+        plot.margin = unit(c(0,14,0,0), "cm"))
+
+legend <- 
+  bi_legend(pal = "PurpleOr",
+            dim = 3,
+            xlab = "Higher rate of asthma",
+            ylab = "Higher pm2.5 concentration",
+            size = 14)
+
+finalPlot <- ggdraw() +
+  draw_plot(map, 0, 0, 1, 1) +
+  draw_plot(legend, 0.6, 0.26, 0.48, 0.48)
+
+finalPlot
+```
+
+
+```{r}
+
+```
+
