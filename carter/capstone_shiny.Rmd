@@ -1,0 +1,149 @@
+---
+title: "Climate Change and Pollution Vulnerability in Oregon"
+output:
+  flexdashboard::flex_dashboard:
+    theme:
+      verson: 4
+      bg: '#FFFFFF'
+      fg: '#000000'
+      primary: '#1A1A1A'
+      navbar-bg: '#000000'
+      base_font:
+        google: Jost
+      code_font:
+        google: Noto Sans Mono
+      heading_font:
+        google: Jost
+      font_scale: 1
+    orientation: rows
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(sf)
+library(biscale)
+library(cowplot)
+library(ggiraph)
+# library(tigris)
+
+# Comments below are how to get from the CSV to the dataset needed for this proof-of-concept
+# Only counties_sf, grouped_data, and metric_names are needed. The rest were removed before saving the .RData file.
+
+# federal_data <- read_csv("./data/climate_env_justice_screening_tool.csv")
+# 
+# oregon_data <-
+#   federal_data |>
+#   filter(`State/Territory` == "Oregon")
+# 
+# selected_data <- 
+#   oregon_data |>
+#   select(-where(is.logical), -contains("percentile"))
+#
+# metric_names <- 
+#   selected_data |>
+#   as.data.frame() |>
+#   select(where(is.numeric)) |>
+#   names()
+#
+# grouped_data <-
+#   selected_data |>
+#   group_by(`County Name`)
+# 
+# counties_sf <- counties(state = "OR", year = 2010)
+# 
+# rm(federal_data)
+# rm(oregon_data)
+# rm(selected_data)
+# 
+# save.image(file = "shiny_data.RData")
+
+load("../data/shiny_data.RData")
+```
+
+Column {.sidebar data-width=320}
+=====================================
+
+### Select two metrics
+
+```{r}
+selectInput(inputId = "metric1",
+            label = "Metric 1",
+            choices = metric_names,
+            selected = "PM2.5 in the air")
+
+selectInput(inputId = "metric2",
+            label = "Metric 2",
+            choices = metric_names,
+            selected = "Current asthma among adults aged greater than or equal to 18 years")
+```
+
+Map
+=====================================
+
+Row
+-----------------------------------------------------------------------
+
+### Vulnerability {.no-title}
+```{r}
+x_lab = reactive(input$metric1)
+
+y_lab = reactive(input$metric2)
+
+renderGirafe({
+  counties_summary <-
+    grouped_data |>
+    summarize(metric1 = mean(.data[[input$metric1]], na.rm = T),
+              metric2 = mean(.data[[input$metric2]], na.rm = T)) |>
+    left_join(counties_sf, by = c("County Name" = "NAMELSAD10")) |>
+    st_as_sf()
+  
+  counties_bivar <-
+    counties_summary |>
+    bi_class(x = metric1, 
+             y = metric2, 
+             style = "quantile", 
+             dim = 3)
+
+  breaks <-
+    counties_summary |>
+    bi_class_breaks(x = metric1,
+                    y = metric2, 
+                    style = "quantile", 
+                    dim = 3, 
+                    split = TRUE)
+  
+  map <-
+    counties_bivar |>
+    ggplot(aes(fill = bi_class,
+               tooltip = `County Name`)) +
+    geom_sf_interactive() +
+    bi_scale_fill(pal = "PurpleOr") +
+    bi_theme() +
+    theme(legend.position = "none")
+
+  legend <-
+    bi_legend(pal = "PurpleOr",
+              dim = 3,
+              xlab = " ",
+              ylab = " ",
+              size = 6,
+              breaks = breaks,
+              arrows = FALSE)
+  
+  final_plot <- 
+    plot_grid(map, legend, ncol = 2, rel_widths = c(16,5)) |>
+    ggdraw() +
+    draw_text(str_wrap(input$metric2, 24), x = 0.727, y = 0.562, size = 6.5) +
+    draw_text(str_wrap(input$metric1, 30), x = 0.892, y = 0.289, size = 6.5)
+
+  girafe(ggobj = final_plot, width_svg = 10, height_svg = 6.13)
+  },
+  
+  outputArgs = list(width = 1705, height = 1045)
+)
+```
