@@ -12,6 +12,8 @@ library(tigris)
 library(sf)
 library(biscale)
 library(cowplot)
+library(dplyr)
+library(tibble)
 ```
 
 ## R Markdown
@@ -67,6 +69,30 @@ finalPlot
 
 
 ```{r}
+# comparing averages for each county to that of the state
+oregon_num_only=oregon_data %>% select(`County Name`,`Census tract 2010 ID`,`State/Territory`) %>%  mutate(select_if(oregon_data, is.numeric))
+
+oregon_num_only=replace(oregon_num_only,is.na(oregon_num_only),0)
+
+oregon_num_counties=oregon_num_only %>% group_by(`County Name`) %>% summarise_if(is.numeric,mean,na.rm=T)
+
+oregon_num_counties=oregon_num_counties %>% 
+                       ungroup %>% 
+                       summarise(`County Name`=c(`County Name`, 'Oregon'),
+                       across(where(is.numeric),~c(., mean(.))))
 
 ```
 
+```{r}
+oregon_num_counties %>% 
+  filter(`County Name` %in% c ('Union County', 'Oregon'))
+```
+
+```{r}
+
+oregon_num_counties %>% 
+  filter(`County Name` %in% c('Union County','Oregon')) %>% 
+  ggplot(aes(x=`County Name`,y=`PM2.5 in the air`))+
+  geom_col()
+
+```
