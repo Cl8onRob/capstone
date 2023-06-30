@@ -85,7 +85,7 @@ oregon_num_counties=oregon_num_counties %>%
 
 ```{r}
 county_compare=oregon_num_counties %>% 
-  filter(`County Name` %in% c ('Union County', 'Oregon')) %>% pivot_longer(!`County Name`,names_to="Index", values_to="value")
+   pivot_longer(!`County Name`,names_to="Index", values_to="value")
 ```
 
 ```{r}
@@ -104,7 +104,8 @@ county_compare %>%
   geom_col(position = "dodge2")+
   coord_flip()+
   theme(legend.position = "none")+
-  labs(x="variables", y="ratio for County vs State")
+  labs(x="variables", y="ratio for County vs State
+       ")
 ```
 
 ```{r}
