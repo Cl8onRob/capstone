@@ -84,18 +84,46 @@ oregon_num_counties=oregon_num_counties %>%
 ```
 
 ```{r}
-oregon_num_counties %>% 
-  filter(`County Name` %in% c ('Union County', 'Oregon'))
+county_compare=oregon_num_counties %>% 
+  filter(`County Name` %in% c ('Union County', 'Oregon')) %>% pivot_longer(!`County Name`,names_to="Index", values_to="value")
+```
+
+```{r}
+# after we got things pivoted, we could make a new row and just call it Oregon state averages then divide across columns
+Oregon_stats=county_compare %>% filter(`County Name`=="Oregon") %>% mutate(Oregon_values=value) %>% select(Index,Oregon_values)
+county_compare=left_join(county_compare,Oregon_stats, by="Index") %>% mutate(ratio=value/Oregon_values)
+
+
+```
+
+
+```{r}
+county_compare %>%
+  filter(`County Name`=="Union County") %>% 
+  ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
+  geom_col(position = "dodge2")+
+  coord_flip()+
+  theme(legend.position = "none")+
+  labs(x="variables", y="ratio for County vs State")
 ```
 
 ```{r}
 
+```
+
+
+```{r}
+
 oregon_num_counties %>% 
-  ggplot(aes(x=reorder(`County Name`,`PM2.5 in the air`),y=`PM2.5 in the air`,fill=`County Name`))+
+  ggplot(aes(x=reorder(`County Name`,`Share of properties at risk of fire in 30 years`),y=`Share of properties at risk of fire in 30 years`,fill=`County Name`))+
   geom_col()+
   coord_flip()+
   theme(legend.position = "none")+
   labs(x="Counties")
-  
 
 ```
+
+```{r}
+oregon_num_counties
+```
+
