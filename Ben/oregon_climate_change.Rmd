@@ -72,7 +72,7 @@ finalPlot
 # comparing averages for each county to that of the state
 oregon_num_only=oregon_data %>% select(`County Name`,`Census tract 2010 ID`,`State/Territory`) %>%  mutate(select_if(oregon_data, is.numeric))
 
-oregon_num_only=replace(oregon_num_only,is.na(oregon_num_only),0)
+oregon_num_only=replace(oregon_num_only,is.na(oregon_num_only),0) #na.rm or na.omit
 
 oregon_num_counties=oregon_num_only %>% group_by(`County Name`) %>% summarise_if(is.numeric,mean,na.rm=T)
 
@@ -85,7 +85,12 @@ oregon_num_counties=oregon_num_counties %>%
 
 ```{r}
 county_compare=oregon_num_counties %>% 
-   pivot_longer(!`County Name`,names_to="Index", values_to="value")
+  select(-matches("percentile")) %>% 
+  select(-c(`Percentage of tract that is disadvantaged by area`, 
+            `Share of neighbors that are identified as disadvantaged`,
+            `Number of Tribal areas within Census tract for Alaska`,
+            `Percent of residents who are not currently enrolled in higher ed`))%>% 
+  pivot_longer(!`County Name`,names_to="Index", values_to="value")
 ```
 
 ```{r}

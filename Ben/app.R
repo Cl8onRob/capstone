@@ -37,12 +37,17 @@ oregon_num_counties=oregon_num_counties %>%
             across(where(is.numeric),~c(., mean(.))))
 #pivot so we can look at ratios
 county_compare=oregon_num_counties %>% 
+  select(-matches("percentile")) %>% 
+  select(-c(`Percentage of tract that is disadvantaged by area`, 
+            `Share of neighbors that are identified as disadvantaged`,
+            `Number of Tribal areas within Census tract for Alaska`,
+            `Percent of residents who are not currently enrolled in higher ed`))%>% 
   pivot_longer(!`County Name`,names_to="Index", values_to="value")
 
 Oregon_stats=county_compare %>% filter(`County Name`=="Oregon") %>% mutate(Oregon_values=value) %>% select(Index,Oregon_values)
 county_compare=left_join(county_compare,Oregon_stats, by="Index") %>% mutate(ratio=value/Oregon_values)
 
-# Define UI for application that draws a histogram
+# Define UI for application 
 ui <- fluidPage(
   theme=bs_theme(version=5, bootswatch="zephyr"),
 
@@ -51,7 +56,7 @@ ui <- fluidPage(
 
     # Sidebar with a selection menu for counties
     sidebarLayout(
-        sidebarPanel(
+        sidebarPanel(width=2,
           selectizeInput(
             inputId= "checkboxes",
             label="Select Counties",
@@ -72,8 +77,8 @@ ui <- fluidPage(
         ),
             
         # Show a plot of the generated data
-        mainPanel(
-           plotOutput("distPlot")
+        mainPanel(width=10,
+           fillPage(plotOutput("distPlot",height="900"))
         )
     )
 )
@@ -90,7 +95,7 @@ server <- function(input, output) {
           ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
           geom_col(position = "dodge2")+
           coord_flip()+
-          theme(legend.position = "none")+
+          theme(legend.position = "none",text=element_text(size=20))+
           labs(x="variables", y="ratio for County vs State")
         
       f 
