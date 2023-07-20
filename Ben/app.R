@@ -53,55 +53,78 @@ ui <- fluidPage(
 
     # Application title
     titlePanel("County Snapshot"),
-
+    
+    downloadButton('download', "Download the data"),
+    fluidRow(column(7,dataTableOutput('dto'))),
     # Sidebar with a selection menu for counties
     sidebarLayout(
         sidebarPanel(width=2,
-          selectizeInput(
-            inputId= "checkboxes",
-            label="Select Counties",
-            choices=unique(county_compare$`County Name`),
-            selected="Union County",
-            multiple=TRUE,
-            options=list(
-              plugins=list("remove_button"),
-              delimiter= ",",
-              create=FALSE,
-              persist=FALSE,
-              highlight=FALSE,
-              selectOnTab=TRUE,
-              searchfield= list("placeholder"="Search...")
-              
-            )
+          selectInput(
+            "county",
+            "Select a County",
+            c("All", sort(unique(
+              as.character(oregon_data$`County Name`)
+            ))), selected = "Baker County", multiple=T,
+            ),
+            conditionalPanel(
+              'input.dataset === "oregon_data"',
+              checkboxGroupInput("show_vars", "Columns in the dataset to show:",
+                                 names(oregon_data),selected= "County Name" )
           )
         ),
             
         # Show a plot of the generated data
         mainPanel(width=10,
-           fillPage(plotOutput("distPlot",height="900"))
-        )
+          tabsetPanel(
+           id ='dataset',
+           tabPanel("oregon_data", plotOutput("distPlot",height="700"),DT::dataTableOutput("mytable1"))
+          )
+        )  
     )
 )
+
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
   #will use the selections to create data table
     output$distPlot <- renderPlot({
         
-      thisCounty=input$checkboxes
         
       f=county_compare %>% 
-          filter(`County Name` %in% c(thisCounty)) %>% 
+          filter(`County Name` %in% c(input$county)) %>% 
           ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
           geom_col(position = "dodge2")+
           coord_flip()+
-          theme(legend.position = "none",text=element_text(size=20))+
+          theme(legend.position = "right",text=element_text(size=20))+
           labs(x="variables", y="ratio for County vs State")
         
       f 
         
         
     })
+    
+      # choose columns to display
+      #oregondata = oregon_data[1:133, ]
+     
+      
+      
+      output$mytable1 <- DT::renderDataTable({
+        DT::datatable(oregon_data %>% select(input$show_vars) %>% filter(`County Name`%in% input$county))               
+        
+        # original filtering without piping -- ignore -> oregon_data[,input$show_vars , drop = FALSE])
+        
+      })
+      
+      
+      # Reactive expression with the data
+      thedata <- reactive(oregon_data %>% select(input$show_vars) %>% filter(`County Name`== c(input$county)))
+      output$download <- downloadHandler(
+        filename = function(){"thename.csv"}, 
+        content = function(fname){
+          write.csv(thedata(), fname)
+        }
+      )
+    
 }
 
 # Run the application 
