@@ -66,12 +66,11 @@ ui <- fluidPage(
               as.character(oregon_data$`County Name`)
             ))), selected = "Baker County", multiple=T,
             ),
-            conditionalPanel(
-              'input.dataset === "oregon_data"',
-              checkboxGroupInput("show_vars", "Columns in the dataset to show:",
-                                 names(oregon_data),selected= "County Name" )
+              tags$div(style="height: 1000px; overflow-y:auto;",
+                       checkboxGroupInput("show_vars", "Columns in the dataset to show:",
+                                 names(oregon_data),selected= "County Name" ))
           )
-        ),
+        ,
             
         # Show a plot of the generated data
         mainPanel(width=10,
@@ -82,6 +81,7 @@ ui <- fluidPage(
         )  
     )
 )
+
 
 
 # Define server logic required to draw a histogram
