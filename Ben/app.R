@@ -41,7 +41,9 @@ county_compare=oregon_num_counties %>%
   select(-c(`Percentage of tract that is disadvantaged by area`, 
             `Share of neighbors that are identified as disadvantaged`,
             `Number of Tribal areas within Census tract for Alaska`,
-            `Percent of residents who are not currently enrolled in higher ed`))%>% 
+            `Percent of residents who are not currently enrolled in higher ed`))
+
+county_compare=county_compare%>% select(c(1,10:26,29:33,36,39,42:47)) %>% 
   pivot_longer(!`County Name`,names_to="Index", values_to="value")
 
 Oregon_stats=county_compare %>% filter(`County Name`=="Oregon") %>% mutate(Oregon_values=value) %>% select(Index,Oregon_values)

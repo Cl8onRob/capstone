@@ -5,10 +5,10 @@ account: oettj8-benjamin-rubin
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 9497740
-bundleId: 7492451
+bundleId: 7492932
 url: https://oettj8-benjamin-rubin.shinyapps.io/County_Snapshot/
-when: 1690238289.88778
-lastSyncTime: 1690238289.8878
+when: 1690250967.15352
+lastSyncTime: 1690250967.15353
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: oregon_climate_change.Rmd
