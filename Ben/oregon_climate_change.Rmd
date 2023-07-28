@@ -76,7 +76,7 @@ oregon_num_only=oregon_data %>% select(`County Name`,`Census tract 2010 ID`,`Sta
 oregon_num_only=replace(oregon_num_only,is.na(oregon_num_only),0) #na.rm or na.omit
 
 oregon_num_counties=oregon_num_only %>% group_by(`County Name`) %>% summarise_if(is.numeric,mean,na.rm=T)
-
+oregon_num_counties2=oregon_num_only %>% group_by(`County Name`) %>% summarise(population=sum(`Total population`))
 oregon_num_counties=oregon_num_counties %>% 
                        ungroup %>% 
                        summarise(`County Name`=c(`County Name`, 'Oregon'),
@@ -123,8 +123,8 @@ county_compare %>%
 
 ```{r}
 
-oregon_num_counties %>% 
-  ggplot(aes(x=reorder(`County Name`,`Share of properties at risk of fire in 30 years`),y=`Share of properties at risk of fire in 30 years`,fill=`County Name`))+
+oregon_num_counties2 %>% 
+  ggplot(aes(x=reorder(`County Name`,`population`),y=`population`,fill=`County Name`))+
   geom_col()+
   coord_flip()+
   theme(legend.position = "none")+
@@ -144,5 +144,98 @@ DT::datatable(oregon_data)
 features_list=unique(county_compare$Index)
 
 
+```
+
+#Percentile analysis
+```{r}
+#creating the vulneribility score for counties
+
+county_compare2=oregon_num_counties %>% 
+  select(matches("percentile")) %>% 
+  select(matches(c("prox","burden","pm","100", 
+                                 "unemployment", "flood", "fire", 
+                                 "population", "agricultural", "building"))) %>%
+  select(-`Traffic proximity and volume (percentile)`) %>% 
+  mutate(vulnerability_score=rowSums(across(everything())))
+
+county_compare2$`County Name`=oregon_num_counties$`County Name`
+
+county_compare2=county_compare2 %>% 
+  relocate(`County Name`, .before = `Proximity to hazardous waste sites (percentile)`) %>% 
+  filter(`County Name`!="Oregon")
+county_compare2
+
+oregon_num_counties %>% select(matches("percentile"))
+```
+
+
+
+
+```{r}
+
+county_compare3=oregon_num_counties %>% 
+  select(-matches(c("percentile","states and PR"))) %>% 
+  select(-c(`Total population`,`Percentage of tract that is disadvantaged by area`, 
+            `Share of neighbors that are identified as disadvantaged`,
+            `Number of Tribal areas within Census tract for Alaska`,
+            `Percent of residents who are not currently enrolled in higher ed`,`County Name`,`Traffic proximity and volume`)) %>% 
+  select(matches(c("prox","burden","100", 
+                                 "unemployment", "flood", "fire", 
+                                 "population", "agricultural", "building")))
+
+county_compare3$`County Name`=oregon_num_counties$`County Name`
+
+county_compare3=county_compare3 %>% 
+  relocate(`County Name`, .before = `Proximity to hazardous waste sites`) %>% 
+  filter(`County Name`!="Oregon")
+
+
+
+county_compare3
+```
+
+
+```{r}
+# get new percentiles for our features
+percentile=function(x){
+  r=(rank(x)-1)/(sum(!is.na(x))-1)*100
+  return(r)
+}
+
+county_compare3[,paste0(names(county_compare3),"_pr")]=apply(county_compare3,2,percentile)
+
+county_compare3=county_compare3[,-14]
+```
+
+```{r}
+
+
+county_compare3$vulnerability_score=rowSums(county_compare3[,14:25])
+
+county_compare3
+
+```
+
+```{r}
+county_compare2 %>% 
+  ggplot(aes(x=reorder(`County Name`,vulnerability_score),y=vulnerability_score))+
+  geom_col(aes(fill=vulnerability_score))+
+  coord_flip()+
+  theme(legend.position="right")+
+  labs(x="County Name",y="Vulnerability score", title= "vulnerability National percentiles")+
+  scale_fill_gradient(low="blue", high="red")
+  
+county_compare3 %>% 
+  ggplot(aes(x=reorder(`County Name`,vulnerability_score),y=vulnerability_score))+
+  geom_col(aes(fill=vulnerability_score))+
+  coord_flip()+
+  theme(legend.position="right")+
+  labs(x="County Name",y="Vulnerability score",title = "Vulnerability Oregon percentiles")+
+  scale_fill_gradient(low="blue", high="red")
+  
+
+```
+```{r}
+write.csv(county_compare3,"./Oregon_county_vulnerability.csv",row.names=FALSE)
 ```
 
