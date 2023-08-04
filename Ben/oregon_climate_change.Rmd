@@ -70,6 +70,10 @@ finalPlot
 
 
 ```{r}
+
+```
+
+```{r}
 # comparing averages for each county to that of the state
 oregon_num_only=oregon_data %>% select(`County Name`,`Census tract 2010 ID`,`State/Territory`) %>%  mutate(select_if(oregon_data, is.numeric))
 
