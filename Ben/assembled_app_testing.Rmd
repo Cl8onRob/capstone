@@ -179,7 +179,7 @@ Column
 
 ### Vulnerability Graph
 
-```{r, fig.height=7}
+```{r, fig.height=10}
 renderPlot({
         
         
@@ -188,8 +188,8 @@ renderPlot({
           ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
           geom_col(position = "dodge2")+
           coord_flip()+
-          theme(legend.position = "right",text=element_text(size=20))+
-          labs(x="variables", y="ratio for County vs State")
+          theme(legend.position = "right",text=element_text(size=30))+
+          labs(x="Variables", y="Percent Difference from the State Average")
         
       f 
         

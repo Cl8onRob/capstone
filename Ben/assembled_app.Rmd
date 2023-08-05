@@ -293,12 +293,12 @@ Column
 renderPlot({
         
         
-      f=county_compare %>% 
+      f=county_compare %>% select(-) %>% 
           filter(`County Name` %in% c(input$county)) %>% 
           ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
           geom_col(position = "dodge2")+
           coord_flip()+
-          theme(legend.position = "right",text=element_text(size=20))+
+          theme(legend.position = "right",text=element_text(size=30))+
           labs(x="variables", y="ratio for County vs State")
         
       f 
