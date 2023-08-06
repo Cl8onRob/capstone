@@ -185,11 +185,14 @@ renderPlot({
         
       f=county_compare %>% 
           filter(`County Name` %in% c(input$county)) %>% 
+          arrange(desc(ratio)) %>% 
+          slice_head(n=10) %>% 
           ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
           geom_col(position = "dodge2")+
           coord_flip()+
           theme(legend.position = "right",text=element_text(size=30))+
-          labs(x="Variables", y="Percent Difference from the State Average")
+          labs(x="Variables", y="Percent Difference from the State Average (%)")+
+          scale_y_continuous(breaks=seq(0,220,40),limits=c(0,220))
         
       f 
         
