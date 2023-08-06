@@ -2,25 +2,12 @@
 title: "Climate Change Vulnerability in Oregon"
 output:
   flexdashboard::flex_dashboard:
-    theme:
-      verson: 4
-      bg: '#FFFFFF'
-      fg: '#000000'
-      primary: '#1A1A1A'
-      navbar-bg: '#000000'
-      base_font:
-        google: Jost
-      code_font:
-        google: Noto Sans Mono
-      heading_font:
-        google: Jost
-      font_scale: 1
-    orientation: rows
+    orientation: columns
     vertical_layout: fill
 runtime: shiny
 ---
 
-```{r global, include=FALSE}
+```{r setup, include=FALSE}
 library(flexdashboard)
 library(ggplot2)
 library(dplyr)
@@ -30,85 +17,14 @@ library(biscale)
 library(cowplot)
 library(ggiraph)
 library(patchwork)
+library(DT)
+library(tidyr)
+```
 
-# Comments below are how to get from the CSV to the dataset needed for this proof-of-concept
-# Only counties_sf, grouped_data, and metric_names are needed. The rest were removed before saving the .RData file.
-# 
-# library(readr)
-# library(tigris)
-# 
-# federal_data <- read_csv("../data/climate_env_justice_screening_tool.csv")
-# 
-# oregon_data <- federal_data |>
-#   filter(`State/Territory` == "Oregon")
-# 
-# selected_data <-
-#   oregon_data |>
-#   select(-where(is.logical),
-#          -contains(c("percentile",
-#                      "exceeded",
-#                      "disadvantaged",
-#                      "area",
-#                      "adjusted",
-#                      "proximity",
-#                      "2009",
-#                      "housing"),
-#                    ignore.case = TRUE),
-#          -`State/Territory`,
-#          -`Percent age 10 to 64`,
-#          -`Energy burden`,
-#          -`Percent pre-1960s housing (lead paint indicator)`,
-#          -`Wastewater discharge`,
-#          -`Leaky underground storage tanks`,
-#          -`Share of homes with no kitchen or indoor plumbing (percent)`,
-#          -`Diagnosed diabetes among adults aged greater than or equal to 18 years`,
-#          -`Median household income as a percent of area median income`,
-#          -`Percent of residents who are not currently enrolled in higher ed`,
-#          -`Percent two or more races`,
-#          -`Percent other races`,
-#          -`Life expectancy (years)`)
-# 
-# # metric_names <-
-# #   selected_data |>
-# #   as.data.frame() |>
-# #   select(where(is.numeric)) |>
-# #   names()
-# 
-# sens_options <-
-#   selected_data |>
-#   as.data.frame() |>
-#   select(`Percent age under 10`,
-#          `Percent age over 64`,
-#          `Current asthma among adults aged greater than or equal to 18 years`:`Percent individuals age 25 or over with less than high school degree`) |>
-#   names()
-# 
-# expo_options <-
-#   selected_data |>
-#   as.data.frame() |>
-#   select(`Expected agricultural loss rate (Natural Hazards Risk Index)`:`Diesel particulate matter exposure`) |>
-#   names()
-# 
-# demo_options <-
-#   selected_data |>
-#   as.data.frame() |>
-#   select(`Percent Black or African American alone`:`Percent Hispanic or Latino`) |>
-#   names()
-# 
-# grouped_data <-
-#   selected_data |>
-#   group_by(`County Name`)
-# 
-# counties_sf <- counties(state = "OR", year = 2010)
-# 
-# rm(federal_data)
-# rm(oregon_data)
-# rm(selected_data)
-# 
-# save.image(file = "../data/shiny_data.RData")
-
+```{r global, include=FALSE}
 load("../data/shiny_data.RData")
 
-layout <- "
+layout1 <- "
 #######################
 ##BBBB#################
 ##BBBB##AAAAAAAAAAAAAAA
@@ -123,10 +39,21 @@ CCCCCCCCAAAAAAAAAAAAAAA
 CCCCCCCC###############
 #######################
 "
+
+layout2 <-"
+#A
+BA
+BA
+BA
+#A
+"
 ```
 
-Column {.sidebar data-width=320}
-=====================================
+Vulnerability
+===================================== 
+
+Sidebar {.sidebar data-width=320}
+-----------------------------------------------------------------------
 
 ### Select metrics
 
@@ -170,13 +97,10 @@ actionButton(inputId = "preset3",
 
 <br />
 
-Vulnerability
-=====================================
-
-Row
+Column {.tabset}
 -----------------------------------------------------------------------
 
-### {.no-title}
+### Sensitivity and Exposure
 ```{r}
 observeEvent(input$preset1, {
   updateSelectInput(inputId = "sensitivity", selected = "Percent age under 10")
@@ -200,7 +124,9 @@ renderGirafe({
   counties_summary <-
     grouped_data |>
     summarize(sens = weighted.mean(.data[[input$sensitivity]], `Total population`, na.rm = T),
-              expo = weighted.mean(.data[[input$exposure]], `Total population`, na.rm = T),
+              expo = ifelse(str_detect(input$exposure, "rate|Share"),
+                            weighted.mean(.data[[input$exposure]], `Total population`, na.rm = T),
+                            mean(.data[[input$exposure]], na.rm = TRUE)),
               demo = weighted.mean(.data[[input$demographic]], `Total population`, na.rm = T)) |>
     mutate(scl1 = (sens - min(.data[["sens"]])) / (max(.data[["sens"]]) - min(.data[["sens"]])),
            scl2 = (expo - min(.data[["expo"]])) / (max(.data[["expo"]]) - min(.data[["expo"]])),
@@ -260,7 +186,7 @@ renderGirafe({
               size = 10,
               breaks = breaks)
 
-  girafe(ggobj = scatter + legend + map + plot_layout(design = layout), 
+  girafe(ggobj = scatter + legend + map + plot_layout(design = layout1), 
          width_svg = 11.5, 
          height_svg = 6.5,
          options = list(
@@ -274,9 +200,346 @@ renderGirafe({
 )
 ```
 
-Single indicator
-=====================================
+### Overall vulnerability
 
 ```{r}
 
+renderGirafe({
+  
+  counties_summary <-
+    county_compare3 |>
+    left_join(counties_sf, by = c("County Name" = "NAMELSAD10")) |>
+    st_as_sf()
+  
+  map <-
+    counties_summary |>
+    ggplot(aes(fill = vulnerability_score,
+               tooltip = paste0(`County Name`, "\n", vulnerability_score))) +
+    geom_sf_interactive() +
+    scale_fill_gradient(low="blue", high="red") +
+    theme_minimal() +
+    theme(legend.position = "top",
+          panel.grid = element_blank(),
+          axis.text = element_blank())
+  
+  bar <- 
+    counties_summary |>
+    ggplot(aes(x=reorder(`County Name`,vulnerability_score),y=vulnerability_score))+
+    geom_col_interactive(aes(fill=vulnerability_score,
+                             tooltip = vulnerability_score))+
+    coord_flip()+
+    theme(legend.position="none")+
+    labs(x="County Name",y="Vulnerability score",title = "Vulnerability Oregon percentiles")+
+    scale_fill_gradient(low="blue", high="red")
+
+  girafe(ggobj = bar + map + plot_layout(design = layout2), 
+         width_svg = 11.375, 
+         height_svg = 6.5,
+         options = list(
+           opts_selection(
+             type = "single")
+           )
+         )
+  },
+  
+  outputArgs = list(width = 1150, height = 650)
+)
+```
+
+County Snapshot
+=====================================
+
+Sidebar {.sidebar data-width=320}
+-----------------------------------------------------------------------
+
+```{r}
+thedata <- reactive(oregon_data %>% select(input$show_vars) %>% filter(`County Name`== c(input$county)))
+
+output$downloadData <- downloadHandler(
+        filename = function(){"Oregon_snapshot_table.csv"}, 
+        content = function(fname){
+          write.csv(thedata(), fname)})
+
+downloadLink('downloadData', 'Download the table') 
+
+thedata2 = reactive(county_compare %>% filter(`County Name`== c(input$county)))
+output$downloadData2= downloadHandler(
+        filename=function(){"Oregon_snapshot_graph.csv"},
+        content=function(fname){
+          write.csv(thedata2(), fname)})
+
+downloadLink('downloadData2', ' Download the graph')
+
+selectInput(
+            "county",
+            "Select a County",
+            c("All", sort(unique(
+              as.character(oregon_data$`County Name`)
+            ))), selected = "Baker County", multiple=T,
+            )
+
+tags$div(style="height: 750px; overflow-y:auto;",
+                       checkboxGroupInput("show_vars", "Columns in the dataset to show:",
+                                 names(oregon_data),selected= "County Name" ))
+```
+
+Column
+-----------------------------------------------------------------------
+
+### Vulnerability Graph
+
+```{r, fig.height=7}
+renderPlot({
+        
+        
+      f=county_compare %>% 
+          filter(`County Name` %in% c(input$county)) %>% 
+          ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
+          geom_col(position = "dodge2")+
+          coord_flip()+
+          theme(legend.position = "right",text=element_text(size=20))+
+          labs(x="variables", y="ratio for County vs State")
+        
+      f 
+        
+        
+    })
+```
+
+### County Information Table
+
+```{r}
+DT::renderDataTable({
+        DT::datatable(oregon_data %>% select(input$show_vars) %>% filter(`County Name`%in% input$county))               
+        
+        # original filtering without piping -- ignore -> oregon_data[,input$show_vars , drop = FALSE])
+        
+      })
+```
+
+Single Metric
+=====================================
+
+Sidebar {.sidebar data-width=320}
+-----------------------------------------------------------------------
+
+```{r}
+selectInput(inputId = "metric",
+            label = "Metric",
+            choices = single_val,
+            selected = "Percent age under 10")
+SIlayout <- "
+AAAAAAAA#########
+AAAAAAAA#########
+AAAAAAAABBBBBBBBB
+AAAAAAAABBBBBBBBB
+AAAAAAAABBBBBBBBB
+AAAAAAAABBBBBBBBB
+AAAAAAAABBBBBBBBB
+AAAAAAAABBBBBBBBB
+#################
+CCCCCCCC#DDDDDDDD
+CCCCCCCC#DDDDDDDD
+CCCCCCCC#DDDDDDDD
+CCCCCCCC#DDDDDDDD
+CCCCCCCC#DDDDDDDD
+CCCCCCCC#DDDDDDDD
+"
+pal <- c("#00FF00", "#FFFF00", "#FF8C00", "#FF0000") 
+```
+
+Column
+-----------------------------------------------------------------------
+
+```{r}
+renderGirafe({
+  sel_data <-
+    grouped_data |>
+    summarize(metric = weighted.mean(.data[[input$metric]], `Total population`, na.rm = TRUE))%>%
+    mutate(`County Name` = gsub(" County", "", `County Name`))%>%
+    select(`County Name`,metric)%>%
+    mutate(across(where(is.numeric), round, 3))
+  
+  
+  avgline<-mean(sel_data$metric) #average
+  
+  coln=input$metric #metric name so I don't need to type stuff out every time
+  
+
+  
+  
+  
+  #plot that compares metric by county
+  county_bar<-sel_data |>
+  ggplot(aes(x = metric, y = reorder(`County Name`,metric),
+             tooltip= paste0(`County Name`,
+                            "\n", coln,': ', metric)))+
+    geom_bar_interactive(stat='identity',fill='lightgray',color='black')+ 
+    ylab('County')+
+    xlab(coln)+
+    ggtitle(paste0(coln,' By County'))+
+
+    geom_vline(xintercept = avgline, linetype = "dashed",lwd = .8)+
+    theme_minimal()+
+    theme(axis.title.x = element_text(face = "bold"))+
+    theme(axis.title.y = element_text(face = "bold"))+
+    theme(plot.title = element_text(face = "bold"))+
+    theme(text = element_text(size = 18))
+  
+  
+  blgh_data <- #data grouped for destroyed building hazard
+    grouped_data |> mutate(
+    bin = cut(`Expected building loss rate (Natural Hazards Risk Index) (percentile)`, breaks = c(0, 10, 50, 90, 100), labels = c("0-10th Percentile", "10-50th Percentile", "50-90th Percentile", "90-100th Percentile")))%>%
+    group_by(bin)%>%
+   summarize(metric = weighted.mean(.data[[input$metric]], `Total population`, na.rm = TRUE))%>%
+   na.omit()%>%
+    mutate(across(where(is.numeric), round, 3))
+  
+  
+  blgh <- blgh_data |>
+    ggplot(aes(x=bin, y=metric,fill=bin,
+              tooltip= paste0(bin,
+                            "\n", coln,': ', metric)))+
+    geom_bar_interactive(stat='identity',color='black')+
+    scale_fill_manual(values = pal)+
+    geom_hline(yintercept = avgline, linetype = "dashed",lwd = .8)+
+    xlab("Building Loss Due to Natural Hazards Nationwide Percentile")+
+    ylab(coln)+
+    ggtitle(paste0(coln,' in tracts \n',
+                   'Organized by Risk of Building \nLoss Due to Natural Hazards'))+
+
+    
+    theme_minimal()+
+    theme(axis.title.x = element_text(face = "bold"),
+          axis.title.y = element_text(face = "bold"),
+          plot.title = element_text(face = "bold"))+
+    theme(text = element_text(size = 18),axis.text.x=element_blank(),
+          legend.title = element_blank())
+
+
+  
+  haz_data <- #data grouped for proximity to hazardous waste
+    grouped_data |> mutate(
+    bin = cut(`Proximity to hazardous waste sites (percentile)`, breaks = c(0, 10, 50, 90, 100), labels = c("0-10th Percentile", "10-50th Percentile", "50-90th Percentile", "90-100th Percentile")))%>%
+    group_by(bin)%>%
+   summarize(metric = weighted.mean(.data[[input$metric]], `Total population`, na.rm = TRUE))%>%
+   na.omit()%>%
+    mutate(across(where(is.numeric), round, 3))
+  
+  
+  haz <- haz_data |>
+    ggplot(aes(x=bin, y=metric,fill=bin,
+              tooltip= paste0(bin,
+                            "\n", coln,': ', metric)))+
+    geom_bar_interactive(stat='identity',color='black')+
+    scale_fill_manual(values = pal)+
+    geom_hline(yintercept = avgline, linetype = "dashed",lwd = .8)+
+    xlab("Proximity to Hazardous Waste Facilities Nationwide Percentile")+
+    ylab(coln)+
+    ggtitle(paste0(coln,' in tracts \n',
+                   'Organized by Proximity to \nHazardous Waste Facilities'))+
+
+    
+    theme_minimal()+
+    theme(axis.title.x = element_text(face = "bold"),
+          axis.title.y = element_blank(),
+          plot.title = element_text(face = "bold"))+
+    theme(text = element_text(size = 18),axis.text.x=element_blank(),
+          legend.position="none")
+  
+    dpm_data <- #data grouped for diesel particulate matter in the air
+    grouped_data |> mutate(
+    bin = cut(`Diesel particulate matter exposure (percentile)`, breaks = c(0, 10, 50, 90, 100), labels = c("0-10th Percentile", "10-50th Percentile", "50-90th Percentile", "90-100th Percentile")))%>%
+    group_by(bin)%>%
+   summarize(metric = weighted.mean(.data[[input$metric]], `Total population`, na.rm = TRUE))%>%
+   na.omit()%>%
+      mutate(across(where(is.numeric), round, 3))
+  
+  
+  dpm <- dpm_data |>
+    ggplot(aes(x=bin, y=metric,fill=bin,
+              tooltip= paste0(bin,
+                            "\n", coln,': ', metric)))+
+    geom_bar_interactive(stat='identity',color='black')+
+    scale_fill_manual(values = pal)+
+    geom_hline(yintercept = avgline, linetype = "dashed",lwd = .8)+
+    xlab("Exposure to Diesel Particulate Matter Nationwide Percentile")+
+    ylab(coln)+
+    ggtitle(paste0(coln,' in tracts \n',
+                   'Organized by Exposure to Diesel \nParticulate Matter'))+
+
+    
+    theme_minimal()+
+    theme(axis.title.x = element_text(face = "bold"),
+          axis.title.y = element_blank(),
+          plot.title = element_text(face = "bold"))+
+    theme(text = element_text(size = 18),
+          axis.text.x=element_blank(),legend.position="none")
+  
+  
+  
+ girafe(ggobj = county_bar + blgh + haz + dpm + plot_layout(design = SIlayout), 
+         width_svg = 20, 
+         height_svg = 15,
+         options = list(
+           opts_selection(
+             type = "single")
+           )
+         )
+  
+},
+  outputArgs = list(width = 1000, height = 750)
+
+)
+```
+
+Demand Action!
+=====================================
+```{r}
+h4("Once your community's climate associated vulnerabilities have 
+                 been determined it's necessary to take action.", align = "center")
+              h5("The information below offers a step by step guide in furtherance of this goal." ,
+                 align = "center")
+              br()
+              p(h5("1. Find your state and/or US representative or legislator."))
+              p("The following link takes you to a page that will help you to find your state and US
+              representative or legislator. Once you've found this, save their contact information as it will be
+              important later. These individuals can be 
+              reached via email or mail, and both strategies are equally effective.")
+              #br(),
+              tags$a(href="https://geo.maps.arcgis.com/apps/instant/lookup/index.html?appid=fd070b56c975456ea2a25f7e3f4289d1", 
+                     "Link to find your representitive and/or legislator")
+              
+              br("")
+              
+              br("")
+              p(h5("2. Formulate your letter to your representative. "))
+              p("The American Psychological Association's (APA) website offers a sample letter or email that can
+                be used as a template (link below). Regardless of whether you use the autogenerated
+                letter or not, it's imperative to state your communities specific risk, and highlight the urgent
+                need for action.")
+              tags$a(href="https://www.apa.org/advocacy/guide/sample-letters.pdf",
+                     "Sample letter")
+              
+              br()
+              tags$a(href="https://www.apa.org/advocacy/guide/sample-email.pdf", 
+                     "Sample email")
+              br()
+              downloadButton('download',"Download our letter")
+              
+              br("")
+              
+              p(h5("3. Send your letter via email or mail to your representative"))
+              p("According to the APA's guide on sending letters to a representative (link below), once the
+                correspondence has been received a legislative correspondent verifies the identity of the sender
+                to ensure they're a constituent, and then it is either routed or tallied. It may take some time
+                to receive a response, and the guide goes on to explain that moving messages are shared with the
+                representative directly.")
+              tags$a(href="https://www.apa.org/advocacy/guide/letter-email", 
+                     "Link to guide")
+              
+              br("")
+              p(h5("4. While waiting for response, share this tool"))
+              p("Share this tool to family, friends, and on social media to ensure that your representative
+                understands the importance and urgency of this issue. ")
 ```
