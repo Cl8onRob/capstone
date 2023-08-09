@@ -1,0 +1,13 @@
+name: capstone_shiny
+title:
+username:
+account: cartermcmahon
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9572624
+bundleId: 7548659
+url: https://cartermcmahon.shinyapps.io/capstone_shiny/
+when: 1691596777.39277
+lastSyncTime: 1691596777.39279
+asMultiple: FALSE
+asStatic: FALSE

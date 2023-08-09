@@ -14,7 +14,6 @@ library(dplyr)
 library(stringr)
 library(sf)
 library(biscale)
-library(cowplot)
 library(ggiraph)
 library(patchwork)
 library(DT)
@@ -22,7 +21,7 @@ library(tidyr)
 ```
 
 ```{r global, include=FALSE}
-load("../data/shiny_data.RData")
+load("./shiny_data.RData")
 
 layout1 <- "
 #######################
@@ -100,6 +99,8 @@ h4("Take a look at the other pages of this app to get an idea of what
               p(h5("4. While waiting for response, share this tool"))
               p("Share this tool to family, friends, and on social media to ensure that your representative
                 understands the importance and urgency of this issue. ")
+              br("")
+              p(h5("This app was created by Daniel Smith, Benjamin Rubin, Cleighton Roberts, and Carter McMahon"))
 ```
 
 Vulnerability
@@ -347,6 +348,8 @@ renderPlot({
         
       f=county_compare %>% 
           filter(`County Name` %in% c(input$county)) %>% 
+          # arrange(desc(ratio)) %>% 
+          # slice_head(n=10) %>% 
           ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
           geom_col(position = "dodge2")+
           coord_flip()+
