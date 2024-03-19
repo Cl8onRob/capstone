@@ -284,7 +284,7 @@ output$downloadData2= downloadHandler(
 downloadLink('downloadData2', 'Download the graph')
 ```
 
-Column
+Column[.tabset]
 -----------------------------------------------------------------------
 
 ### Vulnerability Graph
@@ -293,7 +293,8 @@ Column
 renderPlot({
         
         
-      f=county_compare %>% select(-) %>% 
+      f=county_compare %>% 
+        filter(`County Name` %in% c(input$county)) %>% 
           filter(`County Name` %in% c(input$county)) %>% 
           ggplot(aes(x=reorder(Index,ratio), y= ratio, fill=`County Name`))+
           geom_col(position = "dodge2")+
